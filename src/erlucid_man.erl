@@ -39,15 +39,26 @@
 start_link(ProfileArgs) ->
     case gen_event:start_link({local, ?SERVER}) of
 	{ok,Pid} ->
-	    case erlang:system_profile() of
-		undefined ->
-		    io:format("setting system profile ~n"),
-		    erlang:system_profile(Pid,ProfileArgs);		       
-		{Pid,ProfileArgs} ->
-		    ok
+	    %% case erlang:system_profile() of
+	    %% 	undefined ->
+	    %% 	    io:format("setting system profile ~n"),
+	    %% 	    erlang:system_profile(Pid,ProfileArgs);		       
+	    %% 	{Pid,ProfileArgs} ->
+	    %% 	    ok
+	    %% end,
+	    case erlang:trace(all,true,[{tracer,Pid},call,return_to,arity,set_on_spawn,set_on_link]) of
+		Num when is_integer(Num) ->
+		    case erlang:trace_pattern({'_','_','_'},true,[local,call_count,call_time]) of
+			Num1 when is_integer(Num1) ->
+			    ok;
+			PatReason ->
+			    io:format("Trace pattern failed with reason ~p~n",[PatReason])
+		    end;
+		Reason1 ->
+		    io:format("Trace failed with reason ~p~n",[Reason1])
 	    end,
 	    mprof_han:add_handler(Pid),
-	    case file:open("data",[write]) of
+	    case file:open("perception_1",[write]) of
 		{error,Reason} ->
 		    io:format("error opening file ~p~n",[Reason]),
 		    undefined;
