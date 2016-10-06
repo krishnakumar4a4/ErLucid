@@ -27,7 +27,11 @@
 %% Records
 %%--------------------------------------------------------------------
 
--record(state, {}).
+-record(state, {iodev,
+		pidFunStack,
+		pidFunStackCount,
+		threshold=500
+	       }).
 
 %%====================================================================
 %% API
@@ -53,7 +57,7 @@ add_handler(EventMgr) ->
 %%            Other
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, #state{}}.
+    {ok, #state{pidFunStackCount=0, pidFunStack = []}}.
 
 %%!-------------------------------------------------------------------
 %% handle_event -- Handle an event.
@@ -91,8 +95,34 @@ handle_call(Request, State) ->
 %%            {swap_handler, Args1, State1, Mod2, Args2} |
 %%            remove_handler
 %%--------------------------------------------------------------------
-handle_info({file,IoDev},_State) ->
-    {ok,IoDev};
+handle_info({file,IoDev},State) ->
+    {ok,State#state{iodev=IoDev}};
+handle_info({trace,Pid,call,_},State) when Pid==self()->
+    {ok,State};
+handle_info({trace,Pid,call,{M,F,Args}},State) ->
+    io:format("~p: Call to {~p,~p,~p}~n",[Pid,M,F,Args]),
+    Tuple = {"c",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory))},
+    Threshold = State#state.threshold,
+    NewState = case State#state.pidFunStackCount of 
+		   Count when Count =< Threshold ->
+		       State#state{pidFunStack = [Tuple|State#state.pidFunStack],pidFunStackCount = State#state.pidFunStackCount + 1};
+		   _Count -> 
+		       io:fwrite(State#state.iodev,"~p~n",[State#state.pidFunStack]),
+		       State#state{pidFunStack = [],pidFunStackCount = 0}
+	       end,
+    {ok,NewState};
+handle_info({trace,Pid,return_to,{M,F,Args}},State) ->
+    io:format("~p: return to {~p,~p,~p}~n",[Pid,M,F,Args]),
+    Tuple = {"r",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory))},
+    Threshold = State#state.threshold,
+    NewState = case State#state.pidFunStackCount of 
+		   Count when Count =< Threshold ->
+		       State#state{pidFunStack = [Tuple|State#state.pidFunStack],pidFunStackCount = State#state.pidFunStackCount + 1};
+		   _Count -> 
+		       io:fwrite(State#state.iodev,"~p~n",[State#state.pidFunStack]),
+		       State#state{pidFunStack = [],pidFunStackCount = 0}
+	       end,
+    {ok,NewState};
 handle_info({profile,Pid,active,MFA,Ts}, State) ->
     %%io:format("Profile Pid ~p state ~p MFA ~p Ts ~p~n",[Pid,Status,MFA,Ts]),
     io:format("~p~n",[[S||S<-[{P,erlang:process_info(P,status)}||P<-erlang:processes()],element(2,S)=/={status,waiting}]]),
