@@ -1,4 +1,4 @@
--module(mprof_man).
+-module(erlucid_man).
 
 -rcs('$Id$').
 
@@ -57,7 +57,7 @@ start_link(ProfileArgs) ->
 		Reason1 ->
 		    io:format("Trace failed with reason ~p~n",[Reason1])
 	    end,
-	    mprof_han:add_handler(Pid),
+	    erlucid_han:add_handler(Pid),
 	    case file:open("perception_1",[write]) of
 		{error,Reason} ->
 		    io:format("error opening file ~p~n",[Reason]),
