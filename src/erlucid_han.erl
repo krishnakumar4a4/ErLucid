@@ -42,8 +42,8 @@
 %%
 %% add_handler(EventMgr) -> ok | ErrorRet 
 %%--------------------------------------------------------------------
-add_handler(EventMgr) ->
-    gen_event:add_handler(EventMgr, ?MODULE, []).
+add_handler([EventMgr,IoDev]) ->
+    gen_event:add_handler(EventMgr, ?MODULE, [IoDev]).
 
 %%====================================================================
 %% Handler callback functions
@@ -56,8 +56,8 @@ add_handler(EventMgr) ->
 %%   Return = {ok, State} |
 %%            Other
 %%--------------------------------------------------------------------
-init([]) ->
-    {ok, #state{pidFunStackCount=0, pidFunStack = []}}.
+init([IoDev]) ->
+    {ok, #state{pidFunStackCount=0, pidFunStack = [], iodev = IoDev}}.
 
 %%!-------------------------------------------------------------------
 %% handle_event -- Handle an event.
@@ -101,7 +101,7 @@ handle_info({trace,Pid,call,_},State) when Pid==self()->
     {ok,State};
 handle_info({trace,Pid,call,{M,F,Args}},State) ->
     io:format("~p: Call to {~p,~p,~p}~n",[Pid,M,F,Args]),
-    Tuple = {"c",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory))},
+    Tuple = {"c",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory)),erlang:memory(total)},
     Threshold = State#state.threshold,
     NewState = case State#state.pidFunStackCount of 
 		   Count when Count =< Threshold ->
@@ -113,7 +113,7 @@ handle_info({trace,Pid,call,{M,F,Args}},State) ->
     {ok,NewState};
 handle_info({trace,Pid,return_to,{M,F,Args}},State) ->
     io:format("~p: return to {~p,~p,~p}~n",[Pid,M,F,Args]),
-    Tuple = {"r",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory))},
+    Tuple = {"r",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory)),erlang:memory(total)},
     Threshold = State#state.threshold,
     NewState = case State#state.pidFunStackCount of 
 		   Count when Count =< Threshold ->
