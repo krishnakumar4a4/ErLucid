@@ -1,4 +1,4 @@
--module(mprof_han).
+-module(erlucid_han).
 
 -rcs('$Id$').
 -behaviour(gen_event).
