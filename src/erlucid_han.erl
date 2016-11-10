@@ -30,7 +30,8 @@
 -record(state, {iodev,
 		pidFunStack,
 		pidFunStackCount,
-		threshold=500
+		threshold=10,
+		fullTraceCount
 	       }).
 
 %%====================================================================
@@ -57,7 +58,8 @@ add_handler([EventMgr,IoDev]) ->
 %%            Other
 %%--------------------------------------------------------------------
 init([IoDev]) ->
-    {ok, #state{pidFunStackCount=0, pidFunStack = [], iodev = IoDev}}.
+    {ok, #state{pidFunStackCount=0, pidFunStack = [], iodev = IoDev,
+		fullTraceCount = 0}}.
 
 %%!-------------------------------------------------------------------
 %% handle_event -- Handle an event.
@@ -98,53 +100,105 @@ handle_call(Request, State) ->
 handle_info({file,IoDev},State) ->
     {ok,State#state{iodev=IoDev}};
 handle_info({trace,Pid,call,_},State) when Pid==self()->
+    %% Skip trace messages from the same process as this
+    %% may create havoc of recursive loop
     {ok,State};
+
+%% Function call tracing 
 handle_info({trace,Pid,call,{M,F,Args}},State) ->
     io:format("~p: Call to {~p,~p,~p}~n",[Pid,M,F,Args]),
-    Tuple = {"c",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory)),erlang:memory(total)},
+    %%Adding the monotonic count to the trace
+    FullTraceCount = State#state.fullTraceCount + 1,
+    Tuple = {"c",FullTraceCount,Pid,M,F,Args,
+	     try element(2,erlang:process_info(Pid,memory))
+	     catch error:_ -> undefined end,
+	     try erlang:memory(total)
+	     catch error:_ -> undefined end},
     Threshold = State#state.threshold,
     NewState = case State#state.pidFunStackCount of 
 		   Count when Count =< Threshold ->
-		       State#state{pidFunStack = [Tuple|State#state.pidFunStack],pidFunStackCount = State#state.pidFunStackCount + 1};
+		       State#state{pidFunStack =
+				       [Tuple|State#state.pidFunStack],
+				   pidFunStackCount = State#state.pidFunStackCount + 1,
+				   fullTraceCount = FullTraceCount};
 		   _Count -> 
-		       io:fwrite(State#state.iodev,"~p~n",[State#state.pidFunStack]),
-		       State#state{pidFunStack = [],pidFunStackCount = 0}
+		       erlang:spawn(fun() ->
+					    io:fwrite(State#state.iodev,"~p~n",
+						      [State#state.pidFunStack])
+				    end),
+		       State#state{pidFunStack = [Tuple],
+				   pidFunStackCount = 0,
+				   fullTraceCount = FullTraceCount}
 	       end,
     {ok,NewState};
+
+%% Function return tracing
 handle_info({trace,Pid,return_to,{M,F,Args}},State) ->
     io:format("~p: return to {~p,~p,~p}~n",[Pid,M,F,Args]),
-    Tuple = {"r",Pid,M,F,Args,element(2,erlang:process_info(Pid,memory)),erlang:memory(total)},
+    FullTraceCount = State#state.fullTraceCount + 1,
+    Tuple = {"r",FullTraceCount,Pid,M,F,Args,
+	     try element(2,erlang:process_info(Pid,memory))
+		      %% sometimes while we try to get memory
+		      %% of a process, the process is already
+		      %% exited which throws badarg. Bcz this 
+		      %% is a trace message of something alr-
+		      %% eady happened.
+	     catch error:_ -> undefined end,
+	     try erlang:memory(total)
+	     catch error:_ -> undefined end},
     Threshold = State#state.threshold,
     NewState = case State#state.pidFunStackCount of 
 		   Count when Count =< Threshold ->
-		       State#state{pidFunStack = [Tuple|State#state.pidFunStack],pidFunStackCount = State#state.pidFunStackCount + 1};
+		       State#state{pidFunStack =
+				       [Tuple|State#state.pidFunStack],
+				   pidFunStackCount = State#state.pidFunStackCount + 1,
+				   fullTraceCount = FullTraceCount};
 		   _Count -> 
-		       io:fwrite(State#state.iodev,"~p~n",[State#state.pidFunStack]),
-		       State#state{pidFunStack = [],pidFunStackCount = 0}
+		       erlang:spawn(fun() -> 
+					    io:fwrite(State#state.iodev,"~p~n",
+						      [State#state.pidFunStack]) 
+				    end),
+		       State#state{pidFunStack = [Tuple],
+				   pidFunStackCount = 0,
+				   fullTraceCount = FullTraceCount}
 	       end,
     {ok,NewState};
+
+
 handle_info({profile,Pid,active,MFA,Ts}, State) ->
     %%io:format("Profile Pid ~p state ~p MFA ~p Ts ~p~n",[Pid,Status,MFA,Ts]),
-    io:format("~p~n",[[S||S<-[{P,erlang:process_info(P,status)}||P<-erlang:processes()],element(2,S)=/={status,waiting}]]),
+    io:format("~p~n",[[S||S<-[{P,erlang:process_info(P,status)}
+			      ||P<-erlang:processes()],
+			  element(2,S)=/={status,waiting}]]),
      case erlang:process_info(Pid) of
-     	[{current_function,CurFun},_,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
-     	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",[Pid,CurFun,Status,TotHeap,Heap,MFA,Ts]);
-     	[_,{current_function,CurFun},_,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
-     	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",[Pid,CurFun,Status,TotHeap,Heap,MFA,Ts])
+     	[{current_function,CurFun},
+	 _,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
+     	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",
+		      [Pid,CurFun,Status,TotHeap,Heap,MFA,Ts]);
+     	[_,{current_function,CurFun},
+	 _,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
+     	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",
+		      [Pid,CurFun,Status,TotHeap,Heap,MFA,Ts])
      end,
     {ok, State};
 handle_info({profile,scheduler,Id,active,Count,Ts}, State) ->
-    io:format("Scheduler withId ~p is active,rem count ~p at ~p~n",[Id,Count,Ts]),
+    io:format("Scheduler withId ~p is active,rem count ~p at ~p~n",
+	      [Id,Count,Ts]),
     {ok,State};
 handle_info({profile,scheduler,Id,inactive,Count,Ts}, State) ->
-    io:format("Scheduler withId ~p is active,rem count ~p at ~p~n",[Id,Count,Ts]),
+    io:format("Scheduler withId ~p is active,rem count ~p at ~p~n",
+	      [Id,Count,Ts]),
     {ok,State};
 handle_info({profile,Pid,inactive,MFA,Ts}, State) ->
     case erlang:process_info(Pid) of
- 	[{current_function,CurFun},_,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
- 	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",[Pid,CurFun,Status,TotHeap,Heap,MFA,Ts]);
- 	[_,{current_function,CurFun},_,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
- 	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",[Pid,CurFun,Status,TotHeap,Heap,MFA,Ts])
+ 	[{current_function,CurFun},
+	 _,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
+ 	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",
+		      [Pid,CurFun,Status,TotHeap,Heap,MFA,Ts]);
+ 	[_,{current_function,CurFun},
+	 _,{_,Status},_,_,_,_,_,_,_,_,{_,TotHeap},{_,Heap},_,_,_,_] ->
+ 	    io:format("Pid ~p CurrFun ~p Status ~p TotHeap ~p Heap ~p; MFA ~p Ts ~p~n",
+		      [Pid,CurFun,Status,TotHeap,Heap,MFA,Ts])
     end,
     {ok, State};
 handle_info(Info, State) ->
