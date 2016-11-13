@@ -1,16 +1,17 @@
 # ErLucid
 See through the erlang VM with ease
 
-I meant, an implementation which can give you a runtime memory consumption of erlang functions.
+I meant, an implementation which can give runtime memory consumption of erlang functions.
 
 
-The current implementation would grab all the function calls and corresponding memory at every call and return.
-This would record every 500 traces into a file. if you stop in middle the last traces would be missed.
-Need to think of a solution for not missing even one.
+The current implementation would grab all the function calls and their corresponding memory at every call and return.
+# Limitations
+- Batch processing while writing to the file, if stopped in middle last batch messages would be lost.
+- Recursive looping is not automatically prevented, need to take care while tracing OTP modules.
 
-Still it traces every module, going recursively infinite.
-So, next step would be to isolate OTP calls, atleast io_lib and group_leader calls that may give infinite recursiveness.
+# Good things
+- OTP calls are by default isolated, tracing should be set explicitly.
+- Used xref for validation and event manager for seamless message processing
 
-May be xref and tags module might help to have selective tracing.
-
+# Roadmap
 Still need to work hard on visualizing concurrent processes,function calls and memory consumption without loosing the essence.
