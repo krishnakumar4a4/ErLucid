@@ -1,0 +1,4 @@
+#!/bin/bash
+
+#Order all the traces with this command,This takes higher time to sort
+for i in $(eval echo "{1..$(cat erlangTrace|wc -l)}");do cat erlangTrace|tr -d '[] '|grep "{.*\",$i,";done > erlucidSort
