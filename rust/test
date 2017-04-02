@@ -1,0 +1,9 @@
+{c,1,hello1,fun1,args1}
+{c,2,hello2,fun2,args2}
+{c,3,hello3,fun3,args3}
+{c,4,hello4,fun4,args4}
+{r,5,hello4,fun4,args4}
+{r,6,hello3,fun3,args3}
+{r,7,hello2,fun2,args2}
+{r,8,hello1,fun1,args1}
+{r,9,hello0,fun0,args0}
