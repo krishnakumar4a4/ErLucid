@@ -10,8 +10,9 @@ The current implementation would grab all the function calls and their correspon
 - Recursive looping is not automatically prevented, need to take care while tracing OTP modules.
 
 # Good things
-- OTP calls are by default isolated, tracing should be set explicitly.
-- Used xref for validation and event manager for seamless message processing
+- OTP calls are by default isolated, and their tracing should be set explicitly.
+- Used xref for validation and event manager for seamless message processing.
+- Trace file consumption happens now in "rust programming language" for performance reasons.
 
 # Roadmap
 Still need to work hard on visualizing concurrent processes,function calls and memory consumption without loosing the essence.
