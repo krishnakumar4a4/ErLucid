@@ -7,3 +7,10 @@
 {r,7,hello2,fun2,args2}
 {r,8,hello1,fun1,args1}
 {r,9,hello0,fun0,args0}
+{r,10,hello,fun,args}
+{c,11,hello2,fun2,args2}
+{c,12,hello3,fun3,args3}
+{c,13,hello4,fun4,args4}
+{r,14,hello4,fun4,args4}
+{r,15,hello3,fun3,args3}
+{r,16,hello2,fun2,args2}
