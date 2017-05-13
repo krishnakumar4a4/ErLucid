@@ -12,7 +12,10 @@ The current implementation would grab all the function calls and their correspon
 # Good things
 - OTP calls are by default isolated, and their tracing should be set explicitly.
 - Used xref for validation and event manager for seamless message processing.
-- Trace file consumption happens now in "rust programming language" for performance reasons.
+- Trace file consumption which is supposed to be in millions, happens now in "rust programming language" for performance reasons.
 
 # Roadmap
-Still need to work hard on visualizing concurrent processes,function calls and memory consumption without loosing the essence.
+Still need to work hard on
+- function call visualization for a single process with flamegraph(In Progress)
+- visualizing concurrent processes
+- memory consumption without loosing the essence.(Started to think)
