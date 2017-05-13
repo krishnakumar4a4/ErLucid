@@ -1,0 +1,6 @@
+{r,10,hello,fun,args}; 10
+{r,10,hello,fun,args};{r,9,hello0,fun0,args0}; 9
+{r,10,hello,fun,args};{r,9,hello0,fun0,args0};{c,1,hello1,fun1,args1}; 7
+{r,10,hello,fun,args};{r,9,hello0,fun0,args0};{c,1,hello1,fun1,args1};{c,2,hello2,fun2,args2}; 5
+{r,10,hello,fun,args};{r,9,hello0,fun0,args0};{c,1,hello1,fun1,args1};{c,2,hello2,fun2,args2};{c,3,hello3,fun3,args3}; 3
+{r,10,hello,fun,args};{r,9,hello0,fun0,args0};{c,1,hello1,fun1,args1};{c,2,hello2,fun2,args2};{c,3,hello3,fun3,args3};{c,4,hello4,fun4,args4}; 1
