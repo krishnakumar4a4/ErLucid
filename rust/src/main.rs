@@ -3,8 +3,11 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::io::BufReader;
+use std::io::BufWriter;
 use std::collections::VecDeque;
 use std::convert::From;
+//File open options https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.open
+use std::fs::OpenOptions;
 
 fn main() {
     println!("Hello, world!");
@@ -17,6 +20,15 @@ fn main() {
     };
 
     let f = BufReader::new(file);
+
+    //Open a file if it exists,otherwise create and open with write access
+	let outputFile = match OpenOptions::new().write(true).create(true).open("flameOut"){
+		Ok(file) => file,
+		Err(why) => panic!("could not open {}:{}", display,why.description()),
+	};
+
+	let mut writer = BufWriter::new(&outputFile);
+
     // for line in f.lines(){
     // 	println!("for ever line of: {}", line.unwrap());
     // }
@@ -53,7 +65,7 @@ fn main() {
 		// println!("{:?}", instring.chars().nth(1));
 		let call = instring.chars().nth(1).unwrap();
 		match call {
-			'c' => check_stack_complete(&mut vecdeq,clonedstring, &mut callReturnVec,&mut ReturnVec),
+			'c' => check_stack_complete(&mut vecdeq,clonedstring, &mut callReturnVec,&mut ReturnVec,&mut writer),
 			'r' => append_return(&mut vecdeq,clonedstring, &mut callReturnVec,&mut ReturnVec),
 			_ => println!("not pushing anything"),
 		} 
@@ -61,7 +73,7 @@ fn main() {
 	}	
 	//Below END variable doesnt signify anything,just for the sake of sending
 	let END = "END".to_string();
-		check_stack_complete(&mut vecdeq,END, &mut callReturnVec,&mut ReturnVec);
+		check_stack_complete(&mut vecdeq,END, &mut callReturnVec,&mut ReturnVec,&mut writer);
 			//vecdeq.push_front(line);
 		println!("Before the print loop");
 		for eachValue in callReturnVec {
@@ -106,7 +118,7 @@ fn append_return(vecdeq: &mut VecDeque<String>,r_string: String, callReturnVec: 
 	}
 }
 
-fn check_stack_complete(vecdeq: &mut VecDeque<String>,clonedstring: String, callReturnVec:&mut Vec<String>,ReturnVec: &mut Vec<String>){
+fn check_stack_complete(vecdeq: &mut VecDeque<String>,clonedstring: String, callReturnVec:&mut Vec<String>,ReturnVec: &mut Vec<String>,outputFile: &mut BufWriter<&std::fs::File>){
 	//For the first time vecdeq will be empty,should only try to collect/print/write stack
 	//if callReturnVec holds something
 	println!("check_stack_complete vecdeq{:?}", vecdeq);
@@ -122,7 +134,7 @@ fn check_stack_complete(vecdeq: &mut VecDeque<String>,clonedstring: String, call
 				println!("{:?}", i);
 			}
 			//create stack for flamegraph
-			to_flame_graph(&mut callReturnVec.clone(),ReturnVec.clone());
+			to_flame_graph(&mut callReturnVec.clone(),ReturnVec.clone(),outputFile);
 			//After one stack is complete, clear old stack to start new one
 			callReturnVec.clear();
 			ReturnVec.clear();
@@ -131,7 +143,7 @@ fn check_stack_complete(vecdeq: &mut VecDeque<String>,clonedstring: String, call
 	vecdeq.push_front(clonedstring);
 }
 
-fn to_flame_graph(callReturnVec: &mut Vec<String>,ReturnVec: Vec<String>){
+fn to_flame_graph(callReturnVec: &mut Vec<String>,ReturnVec: Vec<String>,outputFile: &mut BufWriter<&std::fs::File>){
 	// let mut CallString;
 	println!("printing to flamegraph");
 	let mut flameStackVec: Vec<&str> = Vec::new();
@@ -141,13 +153,16 @@ fn to_flame_graph(callReturnVec: &mut Vec<String>,ReturnVec: Vec<String>){
 		flameStackVec.push(&ReturnVec[ReturnVeclength-1-i]);
 		for j in flameStackVec.iter(){
 			print!("{};", j);
+			write!(outputFile,"{};",j);
 		}
 		let mut timediff = ReturnVec[ReturnVeclength-1-i].split(',');
-		match timediff.nth(1){
-			Some(x) => print!(" {}", x),
-			None => print!(" 0",)
+		let Time = match timediff.nth(1){
+			Some(x) => x,
+			None => " 0",
 		};
+		write!(outputFile," {}",Time);
 		print!("\n");
+		write!(outputFile,"\n");
 	}
 	let callReturnVeclength = callReturnVec.len();
 	// println!("callReturnVeclength: {:?}", callReturnVeclength);
@@ -200,8 +215,11 @@ fn to_flame_graph(callReturnVec: &mut Vec<String>,ReturnVec: Vec<String>){
 		// }
 		for i in flameStackVec.iter(){
 			print!("{};", i);
+			write!(outputFile,"{}",i);
 		}
 		print!(" {}", TimeDiff);
+		write!(outputFile," {}",TimeDiff);
 		println!("");
+		write!(outputFile,"\n");
 	}
 }
