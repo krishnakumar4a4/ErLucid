@@ -59,6 +59,9 @@ fn main() {
 		} 
 
 	}	
+	//Below END variable doesnt signify anything,just for the sake of sending
+	let END = "END".to_string();
+		check_stack_complete(&mut vecdeq,END, &mut callReturnVec,&mut ReturnVec);
 			//vecdeq.push_front(line);
 		println!("Before the print loop");
 		for eachValue in callReturnVec {
@@ -106,6 +109,7 @@ fn append_return(vecdeq: &mut VecDeque<String>,r_string: String, callReturnVec: 
 fn check_stack_complete(vecdeq: &mut VecDeque<String>,clonedstring: String, callReturnVec:&mut Vec<String>,ReturnVec: &mut Vec<String>){
 	//For the first time vecdeq will be empty,should only try to collect/print/write stack
 	//if callReturnVec holds something
+	println!("check_stack_complete vecdeq{:?}", vecdeq);
 	if !callReturnVec.is_empty(){
 		//When one stack is complete, vecdeq will turn empty and starts afresh for new stack
 		if vecdeq.is_empty(){
